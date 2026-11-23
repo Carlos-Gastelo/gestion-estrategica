@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Registro de Devoluciones</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Plan: herramienta de formulario + tablero; columna de captura a la izquierda, lectura a la derecha. */
+:root {
+  --bg: #f1f4f6;
+  --surface: #ffffff;
+  --ink: #15212b;
+  --muted: #566878;
+  --line: #d5dde3;
+  --accent: #0a6b88;
+  --accent-soft: #e0f0f5;
+  --ok: #1c7a45;
+  --ok-soft: #e1f3e8;
+  --bad: #b3261e;
+  --bad-soft: #fbe6e4;
+  --warn: #8a5a00;
+  --warn-soft: #fbf0d6;
+  --font-body: "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-num: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1418;
+    --surface: #161f26;
+    --ink: #e6edf2;
+    --muted: #9aabb8;
+    --line: #2a3843;
+    --accent: #55bad8;
+    --accent-soft: #14323d;
+    --ok: #62c78b;
+    --ok-soft: #153324;
+    --bad: #ff8b82;
+    --bad-soft: #3a1b19;
+    --warn: #f0c36a;
+    --warn-soft: #382c10;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1418;
+  --surface: #161f26;
+  --ink: #e6edf2;
+  --muted: #9aabb8;
+  --line: #2a3843;
+  --accent: #55bad8;
+  --accent-soft: #14323d;
+  --ok: #62c78b;
+  --ok-soft: #153324;
+  --bad: #ff8b82;
+  --bad-soft: #3a1b19;
+  --warn: #f0c36a;
+  --warn-soft: #382c10;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.45;
+}
+.wrap { max-width: 1180px; margin: 0 auto; padding: 24px 16px 48px; display: flex; flex-direction: column; gap: 20px; }
+header { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: baseline; justify-content: space-between; }
+h1 { margin: 0; font-size: 26px; font-weight: 700; letter-spacing: -0.01em; text-wrap: balance; }
+.sub { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
+.pill { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--warn-soft); color: var(--warn); }
+.kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.kpi { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; }
+.kpi .lbl { font-size: 12.5px; color: var(--muted); font-weight: 500; }
+.kpi .val { font-family: var(--font-num); font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.kpi .note { font-size: 12.5px; color: var(--muted); }
+.kpi.good .val { color: var(--ok); }
+.kpi.alert .val { color: var(--bad); }
+.grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 20px; align-items: start; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px; display: flex; flex-direction: column; gap: 14px; }
+.card h2 { margin: 0; font-size: 16px; font-weight: 700; }
+.card .hint { margin: -8px 0 0; color: var(--muted); font-size: 13px; }
+.status { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; padding: 10px 12px; border-radius: 8px; font-size: 14px; }
+.status .tag { font-weight: 700; letter-spacing: 0.04em; font-size: 13px; padding: 2px 10px; border-radius: 6px; color: #fff; }
+.status.bad { background: var(--bad-soft); }
+.status.bad .tag { background: var(--bad); }
+.status.ok { background: var(--ok-soft); }
+.status.ok .tag { background: var(--ok); }
+.status .why { color: var(--ink); }
+form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.field.full { grid-column: 1 / -1; }
+label { font-size: 13px; font-weight: 600; }
+label .req { color: var(--bad); margin-left: 2px; }
+input, select { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; width: 100%; min-width: 0; }
+input:focus-visible, select:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
+.field.invalid input, .field.invalid select { border-color: var(--bad); background: var(--bad-soft); }
+.field .err { display: none; font-size: 12px; color: var(--bad); font-weight: 600; }
+.field.invalid .err { display: block; }
+.actions, .field.full.actions { display: flex; flex-direction: row; flex-wrap: wrap; gap: 10px; align-items: center; }
+button { font: inherit; font-weight: 600; border-radius: 8px; padding: 10px 16px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; }
+button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+html[data-theme="dark"] button.primary { color: #06222c; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) button.primary { color: #06222c; } }
+button.primary[aria-disabled="true"] { background: var(--line); border-color: var(--line); color: var(--muted); cursor: not-allowed; }
+.toast { font-size: 13px; font-weight: 600; min-height: 18px; }
+.toast.ok { color: var(--ok); }
+.toast.bad { color: var(--bad); }
+.pareto { display: flex; flex-direction: column; gap: 8px; }
+.prow { display: grid; grid-template-columns: minmax(110px, 190px) minmax(0, 1fr) auto; gap: 10px; align-items: center; font-size: 13px; }
+.prow .name { line-height: 1.25; }
+.bar { background: var(--bg); border-radius: 6px; height: 20px; overflow: hidden; border: 1px solid var(--line); }
+.bar > span { display: block; height: 100%; background: var(--line); }
+.bar > span.vital { background: var(--accent); }
+.prow .num { font-family: var(--font-num); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; font-size: 12.5px; }
+.legend { font-size: 12.5px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+.tablebox { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { padding: 8px 10px; text-align: left; white-space: nowrap; border-bottom: 1px solid var(--line); }
+th { font-size: 12px; color: var(--muted); font-weight: 600; background: var(--bg); position: sticky; top: 0; }
+td.n, th.n { text-align: right; font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+tr:last-child td { border-bottom: 0; }
+.tag-test { font-size: 11px; background: var(--warn-soft); color: var(--warn); padding: 1px 6px; border-radius: 4px; font-weight: 600; margin-left: 6px; }
+.compare { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.cmp { border-radius: 10px; padding: 12px 14px; border: 1px solid var(--line); background: var(--surface); font-size: 13.5px; }
+.cmp b { display: block; font-size: 12px; letter-spacing: 0.04em; color: var(--muted); margin-bottom: 2px; }
+.cmp.before { border-left: 4px solid var(--bad); }
+.cmp.after { border-left: 4px solid var(--ok); }
+.right { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+footer { color: var(--muted); font-size: 12.5px; }
+@media (max-width: 900px) {
+  .grid { grid-template-columns: minmax(0, 1fr); }
+  .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 520px) {
+  form { grid-template-columns: minmax(0, 1fr); }
+  .compare { grid-template-columns: minmax(0, 1fr); }
+  .prow { grid-template-columns: minmax(0, 1fr) auto; }
+  .prow .bar { grid-column: 1 / -1; order: 3; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Registro de devoluciones</h1>
+      <p class="sub">Prototipo del Objetivo 5 · Corporación Alventa S.A.C. (caso académico) · una devolución no se guarda sin lote ni motivo</p>
+    </div>
+    <span class="pill">Prototipo con casos de prueba ficticios</span>
+  </header>
+
+  <section class="compare" aria-label="Antes y después">
+    <div class="cmp before"><b>ANTES (AS-IS)</b>27 de 27 devoluciones sin motivo ni lote registrado (100 %). Valor consignado: S/ 71,416.50.</div>
+    <div class="cmp after"><b>DESPUÉS (TO-BE), EN ESTA PÁGINA</b><span id="afterText"></span></div>
+  </section>
+
+  <section class="kpis" aria-label="Indicadores">
+    <div class="kpi"><span class="lbl">Devoluciones registradas</span><span class="val" id="kN">0</span><span class="note" id="kNnote">en esta sesión</span></div>
+    <div class="kpi"><span class="lbl">Valor registrado</span><span class="val" id="kV">S/ 0.00</span><span class="note">suma de los registros</span></div>
+    <div class="kpi good" id="kPctBox"><span class="lbl">% sin motivo o lote</span><span class="val" id="kPct">—</span><span class="note">meta: 0 % (antes: 100 %)</span></div>
+    <div class="kpi alert"><span class="lbl">Intentos bloqueados</span><span class="val" id="kB">0</span><span class="note">registros incompletos que el formulario no dejó guardar</span></div>
+  </section>
+
+  <div class="grid">
+    <section class="card" aria-labelledby="hForm">
+      <h2 id="hForm">Nueva devolución</h2>
+      <p class="hint">Todos los campos son obligatorios. El botón se activa cuando el registro está completo.</p>
+      <div class="status bad" id="status" role="status" aria-live="polite"><span class="tag" id="statusTag">INCOMPLETO</span><span class="why" id="statusWhy"></span></div>
+      <form id="form" novalidate>
+        <div class="field"><label for="f-fecha">Fecha<span class="req">*</span></label><input id="f-fecha" type="date"><span class="err">Indica la fecha.</span></div>
+        <div class="field"><label for="f-cliente">Cliente<span class="req">*</span></label><input id="f-cliente" type="text" autocomplete="off" placeholder="Nombre del cliente"><span class="err">Indica el cliente.</span></div>
+        <div class="field"><label for="f-doc">Guía o factura<span class="req">*</span></label><input id="f-doc" type="text" autocomplete="off" placeholder="Ej.: T001-000123"><span class="err">Indica la guía o factura.</span></div>
+        <div class="field"><label for="f-pres">Presentación<span class="req">*</span></label>
+          <select id="f-pres"><option value="">Elegir…</option><option>900 mL</option><option>1 L</option><option>5 L</option></select><span class="err">Elige la presentación.</span></div>
+        <div class="field"><label for="f-lote">Lote<span class="req">*</span></label><input id="f-lote" type="text" autocomplete="off" placeholder="Ej.: L000000"><span class="err">Escribe el lote (mínimo 4 letras o números).</span></div>
+        <div class="field"><label for="f-cant">Cantidad (unidades)<span class="req">*</span></label><input id="f-cant" type="number" min="1" step="1" inputmode="numeric"><span class="err">La cantidad debe ser 1 o más.</span></div>
+        <div class="field"><label for="f-valor">Valor devuelto (S/)<span class="req">*</span></label><input id="f-valor" type="number" min="0.01" step="0.01" inputmode="decimal"><span class="err">Indica un valor mayor a 0.</span></div>
+        <div class="field"><label for="f-motivo">Motivo<span class="req">*</span></label>
+          <select id="f-motivo"><option value="">Elegir…</option></select><span class="err">Elige el motivo.</span></div>
+        <div class="field full" id="wrapDetalle" hidden><label for="f-detalle">Detalle del motivo<span class="req">*</span></label><input id="f-detalle" type="text" autocomplete="off" placeholder="Describe el motivo"><span class="err">Describe el motivo.</span></div>
+        <div class="field"><label for="f-destino">Destino del producto<span class="req">*</span></label>
+          <select id="f-destino"><option value="">Elegir…</option><option>Reingreso a almacén</option><option>Cambio al cliente</option><option>Merma</option></select><span class="err">Elige el destino.</span></div>
+        <div class="field"><label for="f-resp">Responsable<span class="req">*</span></label><input id="f-resp" type="text" autocomplete="off" placeholder="Quien recibe la devolución"><span class="err">Indica el responsable.</span></div>
+        <div class="field full actions">
+          <button type="button" class="primary" id="btnSave" aria-disabled="true">Guardar devolución</button>
+          <button type="button" id="btnClear">Limpiar</button>
+          <span class="toast" id="toast" role="status" aria-live="polite"></span>
+        </div>
+      </form>
+    </section>
+
+    <div class="right">
+      <section class="card" aria-labelledby="hPar">
+        <h2 id="hPar">Pareto por motivo (S/)</h2>
+        <p class="hint">Con motivos registrados, el diagnóstico se arma solo. Antes de este formulario no era posible.</p>
+        <div class="pareto" id="pareto"></div>
+        <div class="legend"><span><i style="background:var(--accent)"></i>Zona vital (hasta el 80 % acumulado)</span><span><i style="background:var(--line)"></i>Resto de motivos</span></div>
+      </section>
+
+      <section class="card" aria-labelledby="hTab">
+        <h2 id="hTab">Registros</h2>
+        <div class="tablebox"><table>
+          <thead><tr><th>Fecha</th><th>Cliente</th><th>Guía o factura</th><th>Presentación</th><th>Lote</th><th class="n">Cant.</th><th class="n">Valor</th><th>Motivo</th><th>Destino</th><th>Responsable</th></tr></thead>
+          <tbody id="tbody"></tbody>
+        </table></div>
+        <div class="actions"><button type="button" id="btnTests">Borrar casos de prueba</button></div>
+      </section>
+    </div>
+  </div>
+
+  <footer>Prototipo académico. Los clientes, guías, lotes y montos precargados son ficticios y sirven solo para mostrar cómo funciona el registro. La lista de motivos debe validarse con la empresa. Los datos viven en esta página y no se guardan al cerrarla.</footer>
+</div>
+
+<script>
+(function () {
+  var MOTIVOS = [
+    "Envase defectuoso o con fuga",
+    "Error de pedido o de cantidad",
+    "Producto dañado en transporte",
+    "Llenado incompleto",
+    "Documentación incorrecta",
+    "Otro (especificar)"
+  ];
+  var OTRO = "Otro (especificar)";
+
+  var records = [
+    { fecha: "2026-11-02", cliente: "Cliente A (prueba)", doc: "T001-000101", pres: "1 L", lote: "LP-0101", cant: 48, valor: 720.00, motivo: MOTIVOS[0], detalle: "", destino: "Merma", resp: "Operador 1", prueba: true },
+    { fecha: "2026-11-04", cliente: "Cliente B (prueba)", doc: "T001-000108", pres: "900 mL", lote: "LP-0102", cant: 120, valor: 1560.00, motivo: MOTIVOS[1], detalle: "", destino: "Cambio al cliente", resp: "Operador 1", prueba: true },
+    { fecha: "2026-11-06", cliente: "Cliente A (prueba)", doc: "T001-000115", pres: "5 L", lote: "LP-0103", cant: 20, valor: 1900.00, motivo: MOTIVOS[2], detalle: "", destino: "Merma", resp: "Operador 2", prueba: true },
+    { fecha: "2026-11-09", cliente: "Cliente C (prueba)", doc: "T001-000122", pres: "1 L", lote: "LP-0104", cant: 36, valor: 540.00, motivo: MOTIVOS[3], detalle: "", destino: "Reingreso a almacén", resp: "Operador 2", prueba: true },
+    { fecha: "2026-11-11", cliente: "Cliente B (prueba)", doc: "T001-000130", pres: "900 mL", lote: "LP-0105", cant: 60, valor: 780.00, motivo: MOTIVOS[0], detalle: "", destino: "Merma", resp: "Operador 1", prueba: true },
+    { fecha: "2026-11-13", cliente: "Cliente A (prueba)", doc: "T001-000137", pres: "1 L", lote: "LP-0106", cant: 24, valor: 360.00, motivo: MOTIVOS[4], detalle: "", destino: "Cambio al cliente", resp: "Operador 2", prueba: true }
+  ];
+  var blocked = 0;
+  var attempted = false;
+
+  function $(id) { return document.getElementById(id); }
+  function money(n) { return "S/ " + n.toLocaleString("es-PE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  function dmy(iso) { var p = String(iso).split("-"); return p.length === 3 ? p[2] + "/" + p[1] + "/" + p[0] : iso; }
+  function todayIso() { var d = new Date(); var m = String(d.getMonth() + 1).padStart(2, "0"); var day = String(d.getDate()).padStart(2, "0"); return d.getFullYear() + "-" + m + "-" + day; }
+
+  var sel = $("f-motivo");
+  MOTIVOS.forEach(function (m) { var o = document.createElement("option"); o.textContent = m; sel.appendChild(o); });
+
+  var FIELDS = [
+    { id: "f-fecha", label: "fecha", ok: function (v) { return v !== ""; } },
+    { id: "f-cliente", label: "cliente", ok: function (v) { return v.trim() !== ""; } },
+    { id: "f-doc", label: "guía o factura", ok: function (v) { return v.trim() !== ""; } },
+    { id: "f-pres", label: "presentación", ok: function (v) { return v !== ""; } },
+    { id: "f-lote", label: "lote", ok: function (v) { return /^[A-Za-z0-9-]{4,}$/.test(v.trim()); } },
+    { id: "f-cant", label: "cantidad", ok: function (v) { return Number(v) >= 1; } },
+    { id: "f-valor", label: "valor", ok: function (v) { return Number(v) > 0; } },
+    { id: "f-motivo", label: "motivo", ok: function (v) { return v !== ""; } },
+    { id: "f-detalle", label: "detalle del motivo", when: function () { return $("f-motivo").value === OTRO; }, ok: function (v) { return v.trim() !== ""; } },
+    { id: "f-destino", label: "destino", ok: function (v) { return v !== ""; } },
+    { id: "f-resp", label: "responsable", ok: function (v) { return v.trim() !== ""; } }
+  ];
+
+  function missing() {
+    return FIELDS.filter(function (f) {
+      if (f.when && !f.when()) return false;
+      return !f.ok($(f.id).value);
+    });
+  }
+
+  function paintForm() {
+    var det = $("f-motivo").value === OTRO;
+    $("wrapDetalle").hidden = !det;
+    var miss = missing();
+    var ids = miss.map(function (f) { return f.id; });
+    FIELDS.forEach(function (f) {
+      var box = $(f.id).closest(".field");
+      box.classList.toggle("invalid", attempted && ids.indexOf(f.id) !== -1);
+    });
+    var st = $("status");
+    var complete = miss.length === 0;
+    st.className = "status " + (complete ? "ok" : "bad");
+    $("statusTag").textContent = complete ? "COMPLETO" : "INCOMPLETO";
+    $("statusWhy").textContent = complete ? "Listo para guardar." : "Falta: " + miss.map(function (f) { return f.label; }).join(", ") + ".";
+    $("btnSave").setAttribute("aria-disabled", complete ? "false" : "true");
+  }
+
+  function paintBoard() {
+    var n = records.length;
+    var total = records.reduce(function (s, r) { return s + r.valor; }, 0);
+    var sin = records.filter(function (r) { return !r.lote || !r.motivo; }).length;
+    $("kN").textContent = String(n);
+    $("kV").textContent = money(total);
+    $("kPct").textContent = n ? (sin / n * 100).toFixed(0) + " %" : "—";
+    $("kB").textContent = String(blocked);
+    $("afterText").textContent = n
+      ? sin + " de " + n + " devoluciones sin motivo o lote (" + (sin / n * 100).toFixed(0) + " %). Los intentos incompletos quedan bloqueados."
+      : "Aún no hay devoluciones registradas.";
+
+    var tb = $("tbody");
+    tb.textContent = "";
+    records.slice().reverse().forEach(function (r) {
+      var tr = document.createElement("tr");
+      var cells = [dmy(r.fecha), r.cliente, r.doc, r.pres, r.lote, String(r.cant), money(r.valor), r.motivo === OTRO && r.detalle ? "Otro: " + r.detalle : r.motivo, r.destino, r.resp];
+      cells.forEach(function (c, i) {
+        var td = document.createElement("td");
+        td.textContent = c;
+        if (i === 5 || i === 6) td.className = "n";
+        if (i === 1 && r.prueba) { var t = document.createElement("span"); t.className = "tag-test"; t.textContent = "prueba"; td.appendChild(t); }
+        tr.appendChild(td);
+      });
+      tb.appendChild(tr);
+    });
+    if (!n) {
+      var tr0 = document.createElement("tr"); var td0 = document.createElement("td"); td0.colSpan = 10; td0.textContent = "Sin registros todavía."; tr0.appendChild(td0); tb.appendChild(tr0);
+    }
+
+    var sums = {};
+    records.forEach(function (r) { sums[r.motivo] = (sums[r.motivo] || 0) + r.valor; });
+    var rows = Object.keys(sums).map(function (k) { return { k: k, v: sums[k] }; }).sort(function (a, b) { return b.v - a.v; });
+    var max = rows.length ? rows[0].v : 1;
+    var cum = 0;
+    var box = $("pareto");
+    box.textContent = "";
+    if (!rows.length) { box.textContent = "Registra devoluciones para ver el Pareto."; return; }
+    rows.forEach(function (r) {
+      var before = cum / total * 100;
+      cum += r.v;
+      var pr = document.createElement("div"); pr.className = "prow";
+      var nm = document.createElement("div"); nm.className = "name"; nm.textContent = r.k;
+      var bar = document.createElement("div"); bar.className = "bar";
+      var sp = document.createElement("span"); sp.style.width = (r.v / max * 100).toFixed(1) + "%";
+      if (before < 80) sp.className = "vital";
+      bar.appendChild(sp);
+      var num = document.createElement("div"); num.className = "num"; num.textContent = money(r.v) + " · " + (cum / total * 100).toFixed(0) + " %";
+      pr.appendChild(nm); pr.appendChild(bar); pr.appendChild(num);
+      box.appendChild(pr);
+    });
+  }
+
+  function toast(msg, kind) {
+    var t = $("toast");
+    t.textContent = msg;
+    t.className = "toast " + (kind || "");
+  }
+
+  function resetForm() {
+    FIELDS.forEach(function (f) { $(f.id).value = ""; });
+    $("f-fecha").value = todayIso();
+    attempted = false;
+    paintForm();
+  }
+
+  $("form").addEventListener("input", function () { toast(""); paintForm(); });
+  $("form").addEventListener("change", function () { paintForm(); });
+
+  $("btnSave").addEventListener("click", function () {
+    var miss = missing();
+    if (miss.length) {
+      attempted = true;
+      blocked += 1;
+      toast("No se guardó. Falta: " + miss.map(function (f) { return f.label; }).join(", ") + ".", "bad");
+      paintForm();
+      paintBoard();
+      var first = $(miss[0].id); if (first) first.focus();
+      return;
+    }
+    records.push({
+      fecha: $("f-fecha").value,
+      cliente: $("f-cliente").value.trim(),
+      doc: $("f-doc").value.trim(),
+      pres: $("f-pres").value,
+      lote: $("f-lote").value.trim().toUpperCase(),
+      cant: Number($("f-cant").value),
+      valor: Number($("f-valor").value),
+      motivo: $("f-motivo").value,
+      detalle: $("f-detalle").value.trim(),
+      destino: $("f-destino").value,
+      resp: $("f-resp").value.trim(),
+      prueba: false
+    });
+    resetForm();
+    paintBoard();
+    toast("Devolución guardada con lote y motivo.", "ok");
+  });
+
+  $("btnClear").addEventListener("click", function () { resetForm(); toast(""); });
+
+  $("btnTests").addEventListener("click", function () {
+    records = records.filter(function (r) { return !r.prueba; });
+    paintBoard();
+    toast("Casos de prueba borrados.", "ok");
+  });
+
+  $("f-fecha").value = todayIso();
+  paintForm();
+  paintBoard();
+})();
+</script>
+</body>
+</html>
